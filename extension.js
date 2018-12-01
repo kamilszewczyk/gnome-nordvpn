@@ -15,6 +15,8 @@ const _ = Gettext.domain('nordvpn').gettext;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 
+const TerminalReader = Me.imports.utils.terminal_reader;
+
 let CONNECTION_STATUS = false;
 
 const NordVPN = Lang.Class({
@@ -49,68 +51,68 @@ const NordVPN = Lang.Class({
             The searchEntry is connected to the function for research.
             The menu itself is connected to some shitty hack in order to
             grab the focus of the keyboard. */
-        that._entryItem = new PopupMenu.PopupBaseMenuItem({
-            reactive: false,
-            can_focus: false
-        });
-        that.searchEntry = new St.Entry({
-            name: 'searchEntry',
-            style_class: 'search-entry',
-            can_focus: true,
-            hint_text: _('Search locations'),
-            track_hover: true
-        });
-
-        that.searchEntry.get_clutter_text().connect(
-            'text-changed',
-            Lang.bind(that, that._onSearchTextChanged)
-        );
-
-        that._entryItem.actor.add(that.searchEntry, { expand: true });
-
-        that.menu.addMenuItem(that._entryItem);
-
-        that.menu.connect('open-state-changed', Lang.bind(this, function(self, open){
-            let a = Mainloop.timeout_add(50, Lang.bind(this, function() {
-                if (open) {
-                    that.searchEntry.set_text('');
-                    global.stage.set_key_focus(that.searchEntry);
-                }
-                Mainloop.source_remove(a);
-            }));
-        }));
+        // that._entryItem = new PopupMenu.PopupBaseMenuItem({
+        //     reactive: false,
+        //     can_focus: false
+        // });
+        // that.searchEntry = new St.Entry({
+        //     name: 'searchEntry',
+        //     style_class: 'search-entry',
+        //     can_focus: true,
+        //     hint_text: _('Search locations'),
+        //     track_hover: true
+        // });
+        //
+        // that.searchEntry.get_clutter_text().connect(
+        //     'text-changed',
+        //     Lang.bind(that, that._onSearchTextChanged)
+        // );
+        //
+        // that._entryItem.actor.add(that.searchEntry, { expand: true });
+        //
+        // that.menu.addMenuItem(that._entryItem);
+        //
+        // that.menu.connect('open-state-changed', Lang.bind(this, function(self, open){
+        //     let a = Mainloop.timeout_add(50, Lang.bind(this, function() {
+        //         if (open) {
+        //             that.searchEntry.set_text('');
+        //             global.stage.set_key_focus(that.searchEntry);
+        //         }
+        //         Mainloop.source_remove(a);
+        //     }));
+        // }));
 
         // Create menu sections for items
         // Favorites
-        that.favoritesSection = new PopupMenu.PopupMenuSection();
-
-        that.scrollViewFavoritesMenuSection = new PopupMenu.PopupMenuSection();
-        let favoritesScrollView = new St.ScrollView({
-            style_class: 'ci-location-menu-section',
-            overlay_scrollbars: true
-        });
-        favoritesScrollView.add_actor(that.favoritesSection.actor);
-
-        that.scrollViewFavoritesMenuSection.actor.add_actor(favoritesScrollView);
-
-        that.menu.addMenuItem(that.scrollViewFavoritesMenuSection);
+        // that.favoritesSection = new PopupMenu.PopupMenuSection();
+        //
+        // that.scrollViewFavoritesMenuSection = new PopupMenu.PopupMenuSection();
+        // let favoritesScrollView = new St.ScrollView({
+        //     style_class: 'ci-location-menu-section',
+        //     overlay_scrollbars: true
+        // });
+        // favoritesScrollView.add_actor(that.favoritesSection.actor);
+        //
+        // that.scrollViewFavoritesMenuSection.actor.add_actor(favoritesScrollView);
+        //
+        // that.menu.addMenuItem(that.scrollViewFavoritesMenuSection);
 
         // Locations
-        that.locationSection = new PopupMenu.PopupMenuSection();
-
-        that.scrollViewMenuSection = new PopupMenu.PopupMenuSection();
-        let locationScrollView = new St.ScrollView({
-            style_class: 'ci-location-menu-section',
-            overlay_scrollbars: true
-        });
-        locationScrollView.add_actor(that.locationSection.actor);
-
-        that.scrollViewMenuSection.actor.add_actor(locationScrollView);
-
-        that.menu.addMenuItem(that.scrollViewMenuSection);
+        // that.locationSection = new PopupMenu.PopupMenuSection();
+        //
+        // that.scrollViewMenuSection = new PopupMenu.PopupMenuSection();
+        // let locationScrollView = new St.ScrollView({
+        //     style_class: 'ci-location-menu-section',
+        //     overlay_scrollbars: true
+        // });
+        // locationScrollView.add_actor(that.locationSection.actor);
+        //
+        // that.scrollViewMenuSection.actor.add_actor(locationScrollView);
+        //
+        // that.menu.addMenuItem(that.scrollViewMenuSection);
 
         // Add separator
-        that.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        // that.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // Connection switch
         that.connectionMenuItem = new PopupMenu.PopupSwitchMenuItem(
@@ -130,23 +132,41 @@ const NordVPN = Lang.Class({
         let that = this;
         CONNECTION_STATUS = this.connectionMenuItem.state;
 
-        that._status();
+        let tr = new TerminalReader('nordvpn status', function(cmd, success, result) {
+            Main.notify(cmd);
+        });
+        tr.executeReader();
+
+        if (CONNECTION_STATUS) {
+            // Main.notify("Connecting");
+            // that._connect();
+        } else {
+            // Main.notify("Disconnecting");
+            // that._disconnect();
+        }
     },
 
     _connect: function(country) {
-        Util.spawn([
-            'nordvpn',
-            'connect'
-        ]);
+
+    },
+
+    _disconnect: function() {
+        let that = this;
+        Main.notify(that._callProcess("nordvpn disconnect"));
     },
 
     _status: function(part) {
-        let status = GLib.spawn_command_line_sync("nordvpn status")[1].toString().split("\n");
+        let that = this;
+        let status = that._callProcess("nordvpn status");
 
         status.forEach(function(statusLine) {
             let [label, value] = statusLine.split(": ");
         });
-    }
+    },
+
+    _callProcess: function(command) {
+        return GLib.spawn_command_line_async(command)[1].toString();
+    },
 });
 
 
