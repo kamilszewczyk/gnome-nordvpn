@@ -28,33 +28,36 @@ TerminalReader.prototype = {
         if(this.idle) {
             this.idle = false;
             try {
-                let [exit, pid, stdin, stdout, stderr] =
-                    GLib.spawn_async_with_pipes(null, argv,	null, GLib.SpawnFlags.SEARCH_PATH | GLib.SpawnFlags.DO_NOT_REAP_CHILD, null);
+                let [success, argv] = GLib.shell_parse_argv("sh -c '" + this._commandPipe + "'");
+                if(success) {
+                    let [exit, pid, stdin, stdout, stderr] =
+                        GLib.spawn_async_with_pipes(null, argv,	null,	GLib.SpawnFlags.SEARCH_PATH | GLib.SpawnFlags.DO_NOT_REAP_CHILD,	null);
 
-                this._childPid = pid;
-                this._stdin = new Gio.UnixOutputStream({fd: stdin, close_fd: true});
-                this._stdout = new Gio.UnixInputStream({fd: stdout, close_fd: true});
-                this._stderr = new Gio.UnixInputStream({fd: stderr, close_fd: true});
+                    this._childPid = pid;
+                    this._stdin = new Gio.UnixOutputStream({fd: stdin, close_fd: true});
+                    this._stdout = new Gio.UnixInputStream({fd: stdout, close_fd: true});
+                    this._stderr = new Gio.UnixInputStream({fd: stderr, close_fd: true});
 
-                // We need this one too, even if don't actually care of what the process
-                // has to say on stderr, because otherwise the fd opened by g_spawn_async_with_pipes
-                // is kept open indefinitely
-                this._stderrStream = new Gio.DataInputStream({ base_stream: this._stderr });
-                this._dataStdout = new Gio.DataInputStream({ base_stream: this._stdout });
-                this._cancellableStderrStream = new Gio.Cancellable();
-                this._cancellableStdout = new Gio.Cancellable();
+                    // We need this one too, even if don't actually care of what the process
+                    // has to say on stderr, because otherwise the fd opened by g_spawn_async_with_pipes
+                    // is kept open indefinitely
+                    this._stderrStream = new Gio.DataInputStream({ base_stream: this._stderr });
+                    this._dataStdout = new Gio.DataInputStream({ base_stream: this._stdout });
+                    this._cancellableStderrStream = new Gio.Cancellable();
+                    this._cancellableStdout = new Gio.Cancellable();
 
-                this.resOut = 1;
-                this._readStdout();
-                this.resErr = 1;
-                this._readStderror();
+                    this.resOut = 1;
+                    this._readStdout();
+                    this.resErr = 1;
+                    this._readStderror();
 
-                this._childWatch = GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid, Lang.bind(this, function(pid, status, requestObj) {
-                    GLib.source_remove(this._childWatch);
-                    this._childWatch = null;
-                    this._stdin.close(null);
-                    this.idle = true;
-                }));
+                    this._childWatch = GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid, Lang.bind(this, function(pid, status, requestObj) {
+                        GLib.source_remove(this._childWatch);
+                        this._childWatch = null;
+                        this._stdin.close(null);
+                        this.idle = true;
+                    }));
+                }
                 //throw
             } catch(err) {
                 if (err.code == GLib.SpawnError.G_SPAWN_ERROR_NOENT) {

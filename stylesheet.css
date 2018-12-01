@@ -1,3 +1,7 @@
 .nordvpn-icon {
     background-image: url("assets/nordvpn-off.png");
 }
+
+.nordvpn-icon-active {
+    background-image: url("assets/nordvpn-active.png");
+}

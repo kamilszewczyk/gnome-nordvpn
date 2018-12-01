@@ -115,10 +115,8 @@ const NordVPN = Lang.Class({
         // that.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // Connection switch
-        that.connectionMenuItem = new PopupMenu.PopupSwitchMenuItem(
-            _("Auto connect"), CONNECTION_STATUS, { reactive: true });
-        that.connectionMenuItem.connect('toggled',
-            Lang.bind(that, that._onConnectSwitch));
+        that.connectionMenuItem = new PopupMenu.PopupSwitchMenuItem(_("Auto connect"));
+        that.connectionMenuItem.connect('toggled', Lang.bind(that, that._onConnectSwitch));
         that.menu.addMenuItem(that.connectionMenuItem);
 
     },
@@ -130,29 +128,32 @@ const NordVPN = Lang.Class({
 
     _onConnectSwitch: function() {
         let that = this;
-        CONNECTION_STATUS = this.connectionMenuItem.state;
 
-        let tr = new TerminalReader('nordvpn status', function(cmd, success, result) {
-            Main.notify(cmd);
-        });
-        tr.executeReader();
-
-        if (CONNECTION_STATUS) {
-            // Main.notify("Connecting");
-            // that._connect();
+        if (this.connectionMenuItem.state) {
+            that._connect();
         } else {
-            // Main.notify("Disconnecting");
-            // that._disconnect();
+            that._disconnect();
         }
     },
 
     _connect: function(country) {
-
+        let that = this;
+        let tr = new TerminalReader.TerminalReader('nordvpn connect', function(cmd, success, result) {
+            let output = that._parseOutput(result);
+            Main.notify(output.join("\r\n"));
+            that.icon.style_class = "system-status-icon nordvpn-icon-active"
+        });
+        tr.executeReader();
     },
 
     _disconnect: function() {
         let that = this;
-        Main.notify(that._callProcess("nordvpn disconnect"));
+        let tr = new TerminalReader.TerminalReader('nordvpn disconnect', function(cmd, success, result) {
+            let output = that._parseOutput(result);
+            Main.notify(output.join("\n"));
+            that.icon.style_class = "system-status-icon nordvpn-icon"
+        });
+        tr.executeReader();
     },
 
     _status: function(part) {
@@ -164,8 +165,18 @@ const NordVPN = Lang.Class({
         });
     },
 
-    _callProcess: function(command) {
-        return GLib.spawn_command_line_async(command)[1].toString();
+    _parseOutput: function(raw) {
+        let result = raw.split("\n");
+        result.forEach(function(line, idx) {
+            result[idx] = line.replace(/\r\n\t|\n|\r\t|\u000d|-|\||\\|\//gm, '').trim();
+            if (result[idx] == 0) {
+                result.splice(idx, 1);
+            }
+        });
+
+        // global.log(result);
+
+        return result;
     },
 });
 
